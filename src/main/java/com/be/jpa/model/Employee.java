@@ -1,15 +1,13 @@
 package com.be.jpa.model;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "employees")
 public class Employee {
 
+	@Id
+	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private long id;
 	private String firstname;
 	private String lastname;
@@ -24,9 +22,7 @@ public class Employee {
 		this.lastname = lastName;
 		this.email = emailId;
 	}
-	
-	@Id
-	@GeneratedValue(strategy=GenerationType.IDENTITY)
+
 	public long getId() {
 		return id;
 	}

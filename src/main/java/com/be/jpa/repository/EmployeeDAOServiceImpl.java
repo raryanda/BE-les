@@ -6,7 +6,16 @@ import java.util.Map;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
+
+import com.be.jpa.util.SearchCriteria;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.be.jpa.model.Employee;
@@ -15,6 +24,9 @@ public class EmployeeDAOServiceImpl implements EmployeeDAOService {
 
 	@Autowired
 	private EmployeeRepository repository;
+
+	@Autowired
+	EntityManager entityManager;
 
 	@Override
 	public List<Employee> findAll() {
@@ -47,6 +59,47 @@ public class EmployeeDAOServiceImpl implements EmployeeDAOService {
 	public void delete(Long employeeId) throws Exception {
 		Employee employee = findById(employeeId);
 		repository.delete(employee);
+	}
+
+	@Override
+	public List<Employee> search(List<SearchCriteria> criterias) {
+		CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+		CriteriaQuery<Employee> query = builder.createQuery(Employee.class);
+		Root root = query.from(Employee.class);
+
+		Predicate predicate = buildPredicate(root, builder, criterias);
+		query.where(predicate);
+
+		return entityManager.createQuery(query).getResultList();
+	}
+
+	@Override
+	public List<Employee> searchSpec(List<SearchCriteria> criterias) {
+		return repository.findAll(buildSpec(criterias));
+	}
+
+	@Override
+	public Page<Employee> searchSpecPage(List<SearchCriteria> criterias, Pageable pageable) {
+		return repository.findAll(buildSpec(criterias), pageable);
+	}
+
+	private Predicate buildPredicate(Root root, CriteriaBuilder builder, List<SearchCriteria> criterias) {
+		Predicate predicate = builder.conjunction();
+		for (SearchCriteria criteria : criterias) {
+			if (criteria.getOperation().equalsIgnoreCase(":")) {
+				predicate = builder.and(predicate, builder.equal(root.get(criteria.getKey()), criteria.getValue()));
+			} else if (criteria.getOperation().equalsIgnoreCase("<")) {
+				predicate = builder.and(predicate, builder.lessThanOrEqualTo(root.get(criteria.getKey()), criteria.getValue()));
+			} else if (criteria.getOperation().equalsIgnoreCase(">")) {
+				predicate = builder.and(predicate, builder.greaterThanOrEqualTo(root.get(criteria.getKey()), criteria.getValue()));
+			}
+		}
+		return predicate;
+	}
+
+	private Specification<Employee> buildSpec(List<SearchCriteria> criterias) {
+		return (root, criteriaQuery, criteriaBuilder) ->
+			buildPredicate(root, criteriaBuilder, criterias);
 	}
 
 	// when configure Java API
